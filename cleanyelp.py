@@ -76,7 +76,7 @@ def klass_counts(review_dict, klass_list):
     for review_id in review_dict:
         counts["total"] += 1
         review = review_dict[review_id]
-        raw_counts[review["stars"]] += 1
+        counts[review["rating"]] += 1
     return counts
 
 
@@ -92,9 +92,9 @@ def _homophily_counts(review_pairs, review_dict, klass_list):
         total += 1
         first_review = review_dict[review_tuple[0]]
         second_review = review_dict[review_tuple[1]]
-        raw_counts[first_review["stars"]] += 1
-        if first_review["stars"] == second_review["stars"]:
-            homophily_counts[first_review["stars"]] += 1
+        raw_counts[first_review["rating"]] += 1
+        if first_review["rating"] == second_review["rating"]:
+            homophily_counts[first_review["rating"]] += 1
     for klass in klass_list:
         print klass + " proportion of total, homophily proportion:", (raw_counts[klass]/total), (homophily_counts[klass] / raw_counts[klass])
 
@@ -111,10 +111,12 @@ def main():
     common_review_pairs = find_review_pairs_by_friends(user_dict, review_dict)
     print "Total number of friend review pairs of the same business:", len(common_review_pairs)
 
-    raw_counts = klass_counts(review_dict)
+
+    klass_list = ["negative", "neutral", "positive"]
+    raw_counts = klass_counts(review_dict, klass_list)
     for klass in klass_list:
         print "Total reviews with " + klass + " sentiment:", raw_counts[klass]
-    _homophily_counts(common_review_pairs, review_dict)
+    _homophily_counts(common_review_pairs, review_dict, klass_list)
 
 if __name__ == "__main__":
     main()
