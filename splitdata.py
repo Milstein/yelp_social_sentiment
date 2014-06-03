@@ -4,21 +4,21 @@ import cleanyelp
 import readyelp
 import random
 
-SPLIT_RATIO = 0.9
-
 def main():
-    """ Splits the review data in reviews.json into training and testing data sets.  The proportion of the samples that are given to the training set is defined by the constant SPLIT_RATIO, above. """
+    """ Splits the review data in reviews.json into training and testing data sets.  Reviews created on or before split_date are placed in the training set and reviews created afterward are placed in the test set. """
 
     users = readyelp.read_users_to_dict("./users.json")
     reviews = readyelp.read_reviews_to_dict("./reviews.json")
     cleanyelp.clean_review_dict(reviews, users)
 
+    split_date = cleanyelp.median_date(reviews)
+
     train = []
     test = []
 
     for review_id in reviews:
-        assignment = random.random()
-        if assignment <= SPLIT_RATIO:
+        review_date = reviews[review_id]["date"]
+        if review_date <= split_date:
             train.append(reviews[review_id])
         else:
             test.append(reviews[review_id])

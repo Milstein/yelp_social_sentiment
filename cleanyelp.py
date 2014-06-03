@@ -3,10 +3,39 @@
 import readyelp
 import datetime
 
+def find_influencers(review, review_dict, user_dict):
+    """ Given a review, returns a list of reviews of the same business created by friends of the user who created the given review.  These reviews are thought to influence the sentiment of the given review. """
+    influencers = []
+    user = user_dict[review["user_id"]]
+    friend_list = user["friends"]
+    for friend_id in friend_list:
+        friend = user_dict[friend_id]
+        friend_review_list = friend["reviews"]
+        for friend_review_id in friend_review_list:
+            if friend_review_id not in review_dict: continue
+            friend_review = review_dict[friend_review_id]
+            if friend_review["business_id"] == review["business_id"] and friend_review["date"] < review["date"]:
+                influencers.append(friend_review_id)
+    return influencers
+
+def median_date(review_dict):
+    review_dates = []
+    for review_id in review_dict:
+        review = review_dict[review_id]
+        review_dates.append(review["date"])
+    return review_dates[len(review_dates) / 2]
+
 def _convert_review_date(date_string):
     """ Converts the string representation of a date to a python date object. """
     review_date = datetime.datetime.strptime(date_string, "%Y-%m-%d").date()
     return review_date
+
+def _convert_star_rating_to_binary_klass(star_rating):
+    """ Converts the star attribute of a review to its corresponding binary sentiment (negative or positive). """
+    if star_rating <= 3:
+        return "negative"
+    else:
+        return "positive"
 
 
 def _convert_star_rating_to_three_klass(star_rating):
@@ -24,7 +53,7 @@ def clean_review_dict(review_dict, user_dict):
     ids_to_remove_from_reviews = []
     for review_id in review_dict:
         review = review_dict[review_id]
-        review["rating"] = _convert_star_rating_to_three_klass(review["rating"])
+        review["rating"] = _convert_star_rating_to_binary_klass(review["rating"])
         review_date_string = _convert_review_date(review["date"])
         if review["user_id"] not in user_dict:
             ids_to_remove_from_reviews.append(review_id)
@@ -112,11 +141,13 @@ def main():
     print "Total number of friend review pairs of the same business:", len(common_review_pairs)
 
 
-    klass_list = ["negative", "neutral", "positive"]
+    klass_list = ["negative", "positive"]
     raw_counts = klass_counts(review_dict, klass_list)
     for klass in klass_list:
         print "Total reviews with " + klass + " sentiment:", raw_counts[klass]
     _homophily_counts(common_review_pairs, review_dict, klass_list)
+
+    print median_date(review_dict)
 
 if __name__ == "__main__":
     main()
