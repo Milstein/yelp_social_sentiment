@@ -17,11 +17,20 @@ def main():
     test = []
 
     for review_id in reviews:
-        review_date = reviews[review_id]["date"]
-        if review_date <= split_date:
-            train.append(reviews[review_id])
+        review = reviews[review_id]
+        if len(review["friend_reviews_of_business"]) > 0:
+            assignment = random.random()
+            if assignment <= 0.5:
+                test.append(review)
+            else:
+                train.append(review)
         else:
-            test.append(reviews[review_id])
+            train.append(review)
+        # review_date = reviews[review_id]["date"]
+        # if review_date <= split_date:
+        #     train.append(reviews[review_id])
+        # else:
+        #     test.append(reviews[review_id])
 
     readyelp.write_output(train, "./train_reviews.json")
     readyelp.write_output(test, "./test_reviews.json")
