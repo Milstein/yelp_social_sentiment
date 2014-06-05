@@ -14,9 +14,10 @@ def find_influencers(review, review_dict, user_dict):
         for friend_review_id in friend_review_list:
             if friend_review_id not in review_dict: continue
             friend_review = review_dict[friend_review_id]
-            if friend_review["business_id"] == review["business_id"] and friend_review["date"] < review["date"]:
+            if friend_review["business_id"] == review["business_id"]:
                 influencers.append(friend_review_id)
     return influencers
+
 
 def median_date(review_dict):
     review_dates = []
@@ -25,10 +26,12 @@ def median_date(review_dict):
         review_dates.append(review["date"])
     return review_dates[len(review_dates) / 2]
 
+
 def _convert_review_date(date_string):
     """ Converts the string representation of a date to a python date object. """
     review_date = datetime.datetime.strptime(date_string, "%Y-%m-%d").date()
     return review_date
+
 
 def _convert_star_rating_to_binary_klass(star_rating):
     """ Converts the star attribute of a review to its corresponding binary sentiment (negative or positive). """
@@ -49,7 +52,7 @@ def _convert_star_rating_to_three_klass(star_rating):
 
 
 def clean_review_dict(review_dict, user_dict):
-    """ Removes reviews created by users not in user_dict, standardizes star ratings to their appropriate klass, standardizes review date to python date object. """
+    """ Removes reviews created by users not in user_dict, standardizes star ratings to their appropriate klass, standardizes review date to python date object, and adds to each review a list of prior reviews of the same business by friends of the user. """
     ids_to_remove_from_reviews = []
     for review_id in review_dict:
         review = review_dict[review_id]
@@ -58,7 +61,12 @@ def clean_review_dict(review_dict, user_dict):
         if review["user_id"] not in user_dict:
             ids_to_remove_from_reviews.append(review_id)
         else:
-            review_dict[review_id] = review
+            friend_reviews_of_business = find_influencers(review, review_dict, user_dict)
+            if len(friend_reviews_of_business) == 0:
+                ids_to_remove_from_reviews.append(review_id)
+            else:
+                review["friend_reviews_of_business"] = friend_reviews_of_business
+                review_dict[review_id] = review
     for review_id in ids_to_remove_from_reviews:
         del review_dict[review_id]
 
@@ -67,6 +75,7 @@ def _user_reviews_by_business(review_ids, review_dict):
     """ Returns a dictionary mapping a business_id to a review_id. """
     review_dict_by_business = {}
     for r_id in review_ids:
+        if r_id not in review_dict: continue
         review = review_dict[r_id]
         review_dict_by_business[review["business_id"]] = r_id
     return review_dict_by_business
@@ -133,8 +142,8 @@ def main():
     user_dict = readyelp.read_users_to_dict("./users.json")
     print "Total number of users with friends:", len(user_dict)
 
-    review_dict = readyelp.read_reviews_to_dict("./reviews.json")
-    clean_review_dict(review_dict, user_dict)
+    review_dict = readyelp.read_reviews_to_dict("./train_reviews.json")
+    # clean_review_dict(review_dict, user_dict)
     print "Total number of reviews from these users:", len(review_dict)
 
     common_review_pairs = find_review_pairs_by_friends(user_dict, review_dict)
