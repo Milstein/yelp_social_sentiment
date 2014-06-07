@@ -51,9 +51,10 @@ def influence_baseline(train_reviews, test_reviews, user_dict):
     print "Test reviews with no influencers:", no_influencers
     return Y_predict
 
-def bag_of_words_baseline(train_reviews, test_corpus):
-    """ Implements a baseline bag-of-words classifier. """
+def bag_of_words_probabilities(train_reviews, test_reviews):
+    """ Implements a baseline bag-of-words classifier.  Returns a dictionary mapping tuples (review_id, class) to the probability that that review belongs to that class. """
     train_corpus = []
+    test_corpus = []
     Y_train = []
     for review_id in train_reviews:
         review = train_reviews[review_id]
@@ -63,20 +64,48 @@ def bag_of_words_baseline(train_reviews, test_corpus):
     vectorizer = CountVectorizer(stop_words = 'english')
     X_train = vectorizer.fit_transform(train_corpus)
 
+    for review_id in test_reviews:
+        review = test_reviews[review_id]
+        test_corpus.append(review["text"])
+
     # clf = LinearSVC(class_weight = 'auto').fit(X_train, Y_train)
     # clf = LogisticRegression().fit(X_train, Y_train)
     clf = MultinomialNB().fit(X_train, Y_train)
 
     X_test = vectorizer.transform(test_corpus)
-    Y_predict = clf.predict(X_test)
+    Y_probability = clf.predict_proba(X_test)
+
+    probability_dict = {}
+    review_id_list = test_reviews.keys()
+    for i in range(len(review_id_list)):
+        probability_dict[(review_id_list[i], "negative")] = Y_probability[i][0]
+        probability_dict[(review_id_list[i], "positive")] = Y_probability[i][1]
+
+    return probability_dict
+
+
+def bag_of_words_baseline(train_reviews, test_reviews):
+    """ Runs the baseline classifier and returns an array of predicted classes. """
+    Y_probability = bag_of_words_probabilities(train_reviews, test_reviews)
+    Y_predict = []
+
+    for review_id in test_reviews:
+        p_neg = Y_probability[(review_id, "negative")]
+        p_pos = Y_probability[(review_id, "positive")]
+        if p_neg > p_pos:
+            Y_predict.append("negative")
+        else:
+            Y_predict.append("positive")
 
     return Y_predict
+
+
 
 """ This module implements the baseline classifier.  MultinomialNB, LogisticRegression, and LinearSVC each give comparable performance in their current configurations. """
 def main():
     train_reviews = readyelp.read_reviews_to_dict("./train_reviews.json")
     test_reviews = readyelp.read_reviews_to_dict("./test_reviews.json")
-    user_dict = readyelp.read_users_to_dict("./users.json")
+    user_dict = readyelp.read_users_to_dict("./users_limited.json")
     klass_list = ["negative", "positive"]
     test_corpus = []
     gold_labels = []
@@ -90,7 +119,7 @@ def main():
     print "Random model metrics:"
     print metrics.classification_report(gold_labels, Y_random, target_names = klass_list)
 
-    Y_bag_of_words = bag_of_words_baseline(train_reviews, test_corpus)
+    Y_bag_of_words = bag_of_words_baseline(train_reviews, test_reviews)
     print "Bag of words baseline model metrics:"
     print metrics.classification_report(gold_labels, Y_bag_of_words, target_names = klass_list)
 
