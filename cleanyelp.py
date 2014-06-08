@@ -3,6 +3,26 @@
 import readyelp
 import datetime
 
+def filter_users():
+    user_dict = readyelp.read_users_to_dict("users.json")
+    train_reviews = readyelp.read_reviews_to_dict("train_reviews.json")
+    test_reviews = readyelp.read_reviews_to_dict("test_reviews.json")
+
+    users_limited = []
+
+    for user_id in user_dict:
+        user = user_dict[user_id]
+        user_review_list = user["reviews"]
+        for review_id in user_review_list:
+            if review_id not in train_reviews and review_id not in test_reviews:
+                user_review_list.remove(review_id)
+        if len(user_review_list) > 0:
+            user["reviews"] = user_review_list
+            users_limited.append(user)
+
+    readyelp.write_output(users_limited, "users_limited.json")
+
+
 def find_influencers(review, review_dict, user_dict):
     """ Given a review, returns a list of reviews of the same business created by friends of the user who created the given review.  These reviews are thought to influence the sentiment of the given review. """
     influencers = []
