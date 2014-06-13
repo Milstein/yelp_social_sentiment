@@ -1,30 +1,53 @@
 #!/usr/bin/env python
 
-from pygraph.classes.digraph import digraph
-from pygraph.algorithms.minmax import maximum_flow
+from graph_tool.all import *
 
 def build_graph(klass_list, test_reviews, ind_pref, pair_str):
     """ Takes a dictionary of preferences for the individual document classifier (ind_pref) and a dictionary of strengths of links between pairs (pair_str).  For the former, keys are tuples of the form (r, c) where r is the review_id and c is the class assignment with highest probability.  The keys for the latter dictionary are tuples of the form (r1, r2) and values are the probability that r1 and r2 have the same class according to the Linear-chain CRF model.  Given these dictionaries, this method returns a graph object where each node is a review or a class.  Edges are defined by the keys to each of ind_pref and pair_str, and edge weight is the associated value. """
-    rgraph = digraph()
+    g = Graph(directed = True)
+    e_weight = g.new_edge_property("double")
     # Add nodes to the graph for each klass, "negative" and "positive"
-    rgraph.add_nodes(klass_list)
+    neg = g.add_vertex()
+    pos = g.add_vertex()
     print "Added klass nodes."
     # Add a node to the graph for each review
-    rgraph.add_nodes(test_reviews.keys())
+    for test_review_id in test_reviews:
+        test_review = test_reviews[test_review_id]
+        v = g.add_vertex()
+        test_review["vertex"] = v
+        test_reviews[test_review_id] = test_review
     print "Added review nodes."
     # Add edges connecting each review to the class nodes where edge weight is determined by the individual classifier
-    for edge in ind_pref:
-        rgraph.add_edge(edge, ind_pref[edge])
+    for review_id in ind_pref:
+        review = test_reviews[review_id]
+        e_neg = g.add_edge(neg, review["vertex"])
+        e_pos = g.add_edge(review["vertex"], pos)
+        e_weight[e_neg] = (1 - ind_pref[review_id])
+        e_weight[e_pos] = (ind_pref[review_id])
     print "Added klass edges."
     # Add edges connecting pairs of reviews of the same business by friends
     for pair in pair_str:
-        reverse_pair = (pair[1], pair[0])
-        if not rgraph.has_edge(pair):
-            rgraph.add_edge(pair, pair_str[pair])
-        if not rgraph.has_edge(reverse_pair):
-            rgraph.add_edge(reverse_pair, pair_str[pair])
+        review_1 = test_reviews[pair[0]]
+        review_2 = test_reviews[pair[1]]
+        e = g.add_edge(review_1["vertex"], review_2["vertex"])
+        e_weight[e] = pair_str[pair]
+    print "Graph built."
 
-    return rgraph
+    res = graph_tool.flow.push_relabel_max_flow(g, neg, pos, e_weight)
+    print "Push Relabel run."
+    min_cut, partition = graph_tool.flow.min_st_cut(g, neg, res)
+
+    min_cut_classification = {}
+    for review_id in test_reviews:
+        review = test_reviews[review_id]
+        vertex = review["vertex"]
+        if partition[vertex]:
+            min_cut_classification[review_id] = 0
+        else:
+            min_cut_classification[review_id] = 1
+
+
+    return min_cut_classification
 
 
 def mincutclassification(rgraph):
@@ -34,7 +57,7 @@ def mincutclassification(rgraph):
 
 
 def main():
-    rgraph = digraph()
+    print "working"
 
 if __name__ == "__main__":
     main()
