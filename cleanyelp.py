@@ -2,11 +2,85 @@
 
 import readyelp
 import datetime
+import random
+
+
+def split_data(train_ratio_of_total = 0.5):
+    """ Splits the data randomly according to the ratio of training data to the total size of the data set provided.  The default argument of 0.5 splits the data evenly between training and test sets. """
+    reviews = readyelp.read_reviews_to_dict("./reviews.json")
+    users = readyelp.read_users_to_dict("./users.json")
+    clean_review_dict(reviews, users)
+
+    train = []
+    test = []
+
+    for review_id in reviews:
+        review = reviews[review_id]
+        assignment = random.random()
+        if assignment <= train_ratio_of_total:
+            train.append(review)
+        else:
+            test.append(review)
+
+    readyelp.write_output(train, "./train_reviews.json")
+    readyelp.write_output(test, "./test_reviews.json")
+    filter_users()
+
+
+def split_data_by_business(train_ratio_of_total = 0.5):
+    """ Splits the data such that all reviews of a particular business end up in either the training set or the test set.  This prevents links between reviews from being lost during the split. """
+    reviews = readyelp.read_reviews_to_dict("./reviews.json")
+    users = readyelp.read_users_to_dict("./users.json")
+
+    businesses = business_reviews_dict(reviews)
+
+    train_ids = []
+    test_ids = []
+
+    for business_id in businesses:
+        business_reviews = businesses[business_id]
+        assignment = random.random()
+        if assignment <= train_ratio_of_total:
+            train_ids.extend(business_reviews)
+        else:
+            test_ids.extend(business_reviews)
+
+    train = []
+    test = []
+
+    for train_id in train_ids:
+        review = reviews[train_id]
+        train.append(review)
+
+    for test_id in test_ids:
+        review = reviews[test_id]
+        test.append(review)
+
+    readyelp.write_output(train, "./train_reviews.json")
+    readyelp.write_output(test, "./test_reviews.json")
+
+
+def business_reviews_dict(reviews):
+    businesses = {}
+
+    for review_id in reviews:
+        review = reviews[review_id]
+        business_id = review["business_id"]
+        if business_id in businesses:
+            businesses[business_id].append(review_id)
+        else:
+            businesses[business_id] = [review_id]
+
+    return businesses
+
+
+
 
 def filter_users():
-    user_dict = readyelp.read_users_to_dict("users.json")
-    train_reviews = readyelp.read_reviews_to_dict("train_reviews.json")
-    test_reviews = readyelp.read_reviews_to_dict("test_reviews.json")
+    """ Removes from the set of users any users that do not have reviews in either the training or test datasets. """
+    user_dict = readyelp.read_users_to_dict("./users.json")
+    train_reviews = readyelp.read_reviews_to_dict("./train_reviews.json")
+    test_reviews = readyelp.read_reviews_to_dict("./test_reviews.json")
 
     users_limited = []
 
@@ -20,7 +94,7 @@ def filter_users():
             user["reviews"] = user_review_list
             users_limited.append(user)
 
-    readyelp.write_output(users_limited, "users_limited.json")
+    readyelp.write_output(users_limited, "./users.json")
 
 
 def find_influencers(review, review_dict, user_dict):
@@ -74,6 +148,7 @@ def _convert_star_rating_to_three_klass(star_rating):
 def clean_review_dict(review_dict, user_dict):
     """ Removes reviews created by users not in user_dict, standardizes star ratings to their appropriate klass, standardizes review date to python date object, and adds to each review a list of prior reviews of the same business by friends of the user. """
     ids_to_remove_from_reviews = []
+    to_write_to_file = []
     for review_id in review_dict:
         review = review_dict[review_id]
         review["rating"] = _convert_star_rating_to_binary_klass(review["rating"])
@@ -87,8 +162,10 @@ def clean_review_dict(review_dict, user_dict):
             else:
                 review["friend_reviews_of_business"] = friend_reviews_of_business
                 review_dict[review_id] = review
+                to_write_to_file.append(review)
     for review_id in ids_to_remove_from_reviews:
         del review_dict[review_id]
+    readyelp.write_output(to_write_to_file, "./reviews.json")
 
 
 def _user_reviews_by_business(review_ids, review_dict):
@@ -176,7 +253,6 @@ def main():
         print "Total reviews with " + klass + " sentiment:", raw_counts[klass]
     _homophily_counts(common_review_pairs, review_dict, klass_list)
 
-    print median_date(review_dict)
 
 if __name__ == "__main__":
     main()
