@@ -18,7 +18,7 @@ def random_class():
         return "negative"
 
 def influence_baseline(train_reviews, test_reviews, user_dict):
-    """ Implements a baseline classifier that uses only review influencers.  That is, for each review in the test set, the label assigned is the majority label from the influencers of that review in the training set where an influencer is defined as a review of the same business at an earlier date from a user who is friends with the user who created the given test review. """
+    """ Implements a baseline classifier that uses only review influencers.  That is, for each review in the test set, the label assigned is the majority label from the influencers of that review in the test set where an influencer is defined as a review of the same business at an earlier date from a user who is friends with the user who created the given test review. """
     Y_predict = []
     total_train_influencers = 0
     total_test_influences = 0
@@ -28,13 +28,9 @@ def influence_baseline(train_reviews, test_reviews, user_dict):
         influencer_list = review["friend_reviews_of_business"]
         influence_sum = 0
         for influencer_id in influencer_list:
-            if influencer_id in train_reviews:
-                influencer = train_reviews[influencer_id]
-            elif influencer_id in test_reviews:
-                # influencer = test_reviews[influencer_id]
-                continue
+            if influencer_id in test_reviews:
+                influencer = test_reviews[influencer_id]
             else:
-                print "Influencer not in either set?"
                 continue
             if influencer["rating"] == "negative":
                 influence_sum -= 1
@@ -78,8 +74,7 @@ def bag_of_words_probabilities(train_reviews, test_reviews):
     probability_dict = {}
     review_id_list = test_reviews.keys()
     for i in range(len(review_id_list)):
-        probability_dict[(review_id_list[i], "negative")] = Y_probability[i][0]
-        probability_dict[(review_id_list[i], "positive")] = Y_probability[i][1]
+        probability_dict[review_id_list[i]] = Y_probability[i][1]
 
     return probability_dict
 
@@ -90,9 +85,8 @@ def bag_of_words_baseline(train_reviews, test_reviews):
     Y_predict = []
 
     for review_id in test_reviews:
-        p_neg = Y_probability[(review_id, "negative")]
-        p_pos = Y_probability[(review_id, "positive")]
-        if p_neg > p_pos:
+        p_pos = Y_probability[review_id]
+        if p_pos < 0.5:
             Y_predict.append("negative")
         else:
             Y_predict.append("positive")
